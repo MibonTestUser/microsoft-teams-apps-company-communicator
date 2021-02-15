@@ -6,6 +6,7 @@ import { initializeIcons } from 'office-ui-fabric-react/lib/Icons';
 import * as AdaptiveCards from "adaptivecards";
 import { Button, Loader, Dropdown, Text } from '@stardust-ui/react';
 import * as microsoftTeams from "@microsoft/teams-js";
+import Resizer from 'react-image-file-resizer';
 
 import './newMessage.scss';
 import './teamTheme.scss';
@@ -82,6 +83,7 @@ export interface INewMessageProps extends RouteComponentProps, WithTranslation {
 class NewMessage extends React.Component<INewMessageProps, formState> {
     readonly localize: TFunction;
     private card: any;
+    fileInput: any;
 
     constructor(props: INewMessageProps) {
         super(props);
@@ -117,8 +119,10 @@ class NewMessage extends React.Component<INewMessageProps, formState> {
             selectedRosters: [],
             selectedGroups: [],
             errorImageUrlMessage: "",
-            errorButtonUrlMessage: "",
+            errorButtonUrlMessage: "",            
         }
+        this.fileInput = React.createRef();
+        this.handleImageSelection = this.handleImageSelection.bind(this);
     }
 
     public async componentDidMount() {
@@ -316,6 +320,58 @@ class NewMessage extends React.Component<INewMessageProps, formState> {
         document.removeEventListener("keydown", this.escFunction, false);
     }
 
+    _handleReaderLoaded = (readerEvt: any) => {
+        const binaryString = readerEvt.target.result;
+        console.log(binaryString);       
+    }
+
+    handleImageSelection(){
+        const file = this.fileInput.current.files[0];
+        if (file) {
+            Resizer.imageFileResizer(file, 400, 400, 'JPEG', 80, 0,
+                uri => {
+                    if (uri.toString().length < 64000) {
+                        this.setState({
+                            imageLink: uri.toString()
+                        }, () => {
+                            this._handleReaderLoaded.bind(this);
+                        }
+                        );
+                    } else {
+                        console.log("Image size too large.");
+                    }
+
+                },
+                'base64');            
+        }
+    }
+
+    /**
+    * Event Handler for image change
+    */
+    handleChange = (event: any) => {
+        const fileUploaded = event.target.files[0];
+        if (fileUploaded) {
+            let isValid = true;
+            let img = new Image
+            img.src = window.URL.createObjectURL(fileUploaded)
+            img.onload = () => {
+                if (img.width < 850 || img.height < 290 || img.width > 900 || img.height > 310) {
+                    isValid = false;
+                }
+
+                //this.setState({ isPhotoDimentionsValid: isValid });
+            }
+        }
+    };
+
+    /**
+    * Function calling a click event on a hidden file input
+    */
+    handleUploadClick = (event: any) => {
+        this.fileInput.current.click();
+    };
+
     public render(): JSX.Element {
         if (this.state.loader) {
             return (
@@ -348,6 +404,17 @@ class NewMessage extends React.Component<INewMessageProps, formState> {
                                     errorLabel={this.state.errorImageUrlMessage}
                                     autoComplete="off"
                                 />
+
+                                
+
+                                <Button onClick={this.handleUploadClick}
+                                    size="medium" className="inputField"
+                                    content={this.localize("UploadImage")} iconPosition="before" />
+
+                                <input type="file" accept="image/"
+                                    style={{ display: 'none' }}
+                                    onChange={this.handleImageSelection}
+                                    ref={this.fileInput} />                                
 
                                 <TextArea
                                     className="inputField textArea"
